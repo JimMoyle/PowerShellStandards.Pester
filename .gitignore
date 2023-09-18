@@ -1,1 +1,6 @@
 start.ps1
+New-AdoBug*
+newcmdlets.txt
+test-function.ps1
+newcmdlets.txt
+Show-ADOText.ps1
