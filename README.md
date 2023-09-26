@@ -1,1 +1,1 @@
-# Az.DesktopVirtualization.Pester
+# PowerShellStandards.Pester
