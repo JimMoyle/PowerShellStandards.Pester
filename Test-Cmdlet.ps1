@@ -130,7 +130,7 @@ function Test-Cmdlet {
                         It -Tag AutoRest 'Parameter must accept input (DontShow).' {
                             $noShowParams = foreach ($param in $parameters) { 
                                 if ($null -ne $param.Attributes.DontShow -and $param.Attributes.DontShow -eq $true) {
-                                        Write-Output $param.Name
+                                    Write-Output $param.Name
                                 }
                             } 
                             $noShowParams | Should -BeNullOrEmpty -Because "Does not contain do not show based parameters. This property should be rarely used, and only for short recursive functions which call itself.`n`nThe Parameters which need fixing are:`n $($noShowParams -Join ', ')`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameters?view=powershell-7.3`nhttps://www.oreilly.com/library/view/mastering-windows-powershell/9781789536669/b491800b-4991-471c-a26a-e5db1f68a083.xhtml"
@@ -309,8 +309,45 @@ function Test-Cmdlet {
                             #$function.ParameterSets.Count | Should -BeGreaterThan 1
                         }
         
-                        It -Tag WIP 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
-        
+                        It -Tag Test 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
+                            $optionalParams = foreach ($param in $parameters) { 
+                                if ($param.Attributes.Mandatory -ne $true) {
+                                    Write-Output $param.Name 
+                                }
+                            }
+
+                            foreach ($param in $optionalParams) {
+                                if ($param.ParameterSets.Count -gt 2) {
+                                    $paramSets = ($param.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
+                                }
+                            }
+
+                            $parameterArrays = foreach ($set in $paramSets) {
+                                $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
+                                    $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name } | Select-Object -ExpandProperty Name
+                                    [PSCustomObject]@{
+                                        SetName = $set
+                                        Params = $paramNamesInSet
+                                    }
+                                }
+                            }
+
+                            $commonParams = $parameterArrays.Params | Group-Object | Where-Object Count -gt 1 | Select-Object -ExpandProperty Name
+
+                            $uniqueParams = $parameterArrays.Params | Where-Object { $commonParams -notcontains $_ }
+
+                            $uniqueParams | Should -Not -BeNullOrEmpty -Because "Cmdlet has multiple parameter sets and does not have a default parameter set.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02"
+
+                            #TODO make sure at least one of the unique parmas per param set is Mandatory below is copilot code
+                            foreach ($set in $function.ParameterSets) {
+                                $uniqueParamsInSet = $uniqueParams | Where-Object { $set.Parameters.Name -contains $_ }
+                                $mandatoryUniqueParamsInSet = $uniqueParamsInSet | Where-Object { $_.Mandatory -eq $true }
+                                if ($null -eq $mandatoryUniqueParamsInSet){
+                                    $function.ParameterSets.DefaultParameterSetName | Should -not -BeNullOrEmpty -Because "Cmdlet has multiple parameter sets which might not be resolved and does not have a default parameter set.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02"
+                                } 
+                            }
+
+                            
                         }
         
                         It -Tag WIP 'Supports arrays for Parameters where appropriate. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-arrays-for-parameters' {
@@ -344,7 +381,7 @@ function Test-Cmdlet {
             $pesterConfig.Run.ScriptBlock = $pesterScriptblock
             $pesterConfig.Run.Passthru = $true
             $pesterConfig.Output.Verbosity = 'None'
-            #$pesterConfig.Filter.Tag = 'Test'
+            $pesterConfig.Filter.Tag = 'Test'
         
             if ($AddOptionalTests) {
                 $pesterConfig.Filter.ExcludeTag = 'WIP'
@@ -378,14 +415,14 @@ function Test-Cmdlet {
                         $testOutput = [PSCustomObject]@{
                             Name   = $cmdlet
                             Failed = foreach ($test in $fullResult.Failed) {
-                                if ($test.ErrorRecord[0].ToString().Split(', but got ')[0] -Match "^Expected .* because ((?:.*\n*)*)"){
+                                if ($test.ErrorRecord[0].ToString().Split(', but got ')[0] -Match "^Expected .* because ((?:.*\n*)*)") {
                                     $explanation = $Matches[1]
                                 }
                                 else {
                                     $explanation = $test.ErrorRecord[0].ToString()
                                 }
                                 [PSCustomObject]@{
-                                    Name    = $test.Name
+                                    Name        = $test.Name
                                     Explanation = $explanation
                                 }
                             }    
