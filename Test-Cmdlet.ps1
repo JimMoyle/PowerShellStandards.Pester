@@ -14,7 +14,7 @@ function Test-Cmdlet {
         [Parameter(
             ValuefromPipelineByPropertyName = $true
         )]
-        [Switch]$AddOptionalTests,
+        [Switch]$AddOptionalTest,
 
         [Parameter(
             ValuefromPipelineByPropertyName = $true
@@ -409,7 +409,7 @@ function Test-Cmdlet {
             $pesterConfig.Output.Verbosity = 'None'
             $pesterConfig.Filter.Tag = 'Test'
         
-            if ($AddOptionalTests) {
+            if ($AddOptionalTest) {
                 $pesterConfig.Filter.ExcludeTag = 'WIP'
             }
             else {
