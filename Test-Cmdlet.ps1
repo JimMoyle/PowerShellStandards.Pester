@@ -1,3 +1,38 @@
+<#
+.SYNOPSIS
+    Tests a PowerShell cmdlet against a set of standards.
+
+.DESCRIPTION
+    The Test-Cmdlet function tests a PowerShell cmdlet against a set of standards to ensure that it meets the best practices for cmdlet development. The function checks the cmdlet's verb, help page URI, parameter names, and other properties to ensure that they meet the recommended guidelines.
+
+.PARAMETER Name
+    Specifies the name of the cmdlet to test.
+
+.PARAMETER AddOptionalTest
+    Specifies whether to add an optional test to the set of standards.
+
+.PARAMETER Output
+    Specifies the type of output to return. The default value is 'Boolean'.
+
+.PARAMETER ParametersMax
+    Specifies the maximum number of parameters that the cmdlet can have. The default value is 30.
+
+.OUTPUTS
+    The function returns a Boolean value that indicates whether the cmdlet meets the set of standards.
+
+.EXAMPLE
+    PS C:\> Test-Cmdlet -Name Get-Process
+
+    This example tests the Get-Process cmdlet against a set of standards to ensure that it meets the recommended guidelines.
+
+.LINK
+
+    https://github.com/JimMoyle/PowerShellStandards.Pester#readme
+
+.NOTES
+    Author: Jim Moyle
+    Date:   October 2023
+#>
 function Test-Cmdlet {
     [OutputType([System.Boolean])]
     [CmdletBinding()]
@@ -26,7 +61,7 @@ function Test-Cmdlet {
             ValuefromPipelineByPropertyName = $true
         )]
         [ValidateRange(0, 512)]
-        [Int32]$MaxParameters = 30
+        [Int32]$ParametersMax = 30
     )
 
     begin {
@@ -250,7 +285,7 @@ function Test-Cmdlet {
                         }
         
                         It -Tag WIP "A cmdlet should not have too many parameters. For a better user experience, limit the number of parameters." {
-                            $parameters.Count | Should -BeLessThan ($MaxParameters + 1) -Because "Cmdlet has $($parameters.Count) parameters.`nThis should be simplified or split into multiple cmdlets. Max Tested was $MaxParameters.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
+                            $parameters.Count | Should -BeLessThan ($ParametersMax + 1) -Because "Cmdlet has $($parameters.Count) parameters.`nThis should be simplified or split into multiple cmdlets. Max Tested was $ParametersMax.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                         }
         
                         It 'When you specify positional parameters, limit the number of positional parameters in a parameter set to less than five. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks' {
@@ -323,19 +358,21 @@ function Test-Cmdlet {
                                 }
                             }
                             
-                            $parameterArrays = foreach ($set in $paramSets) {
-                                $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
-                                    $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name } | Select-Object -ExpandProperty Name
-                                    Write-Output [PSCustomObject]@ {
-                                        SetName = $set
-                                        Params = $paramNamesInSet
+                            if ($null -ne $paramSets) {
+                                $parameterArrays = foreach ($set in $paramSets) {
+                                    $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
+                                        $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name } | Select-Object -ExpandProperty Name
+                                        Write-Output [PSCustomObject]@ {
+                                            SetName = $set
+                                            Params = $paramNamesInSet
+                                        }
                                     }
                                 }
+                            
+                                $uniqueParams = $parameterArrays.Params | Group-Object | Where-Object Count -eq 1 | Select-Object -ExpandProperty Name
+                            
+                                $uniqueParams | Should -Not -BeNullOrEmpty -Because "The Parameter Sets $($paramSets -join ', ') appear to contain the same parameters, parameter sets should contain unique parmaeter combinations.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#parameter-set-requirements"
                             }
-                            
-                            $uniqueParams = $parameterArrays.Params | Group-Object | Where-Object Count -eq 1 | Select-Object -ExpandProperty Name
-                            
-                            $uniqueParams | Should -Not -BeNullOrEmpty -Because "The Parameter Sets $($paramSets -join ', ') appear to contain the same parameters, parameter sets should contain unique parmaeter combinations.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#parameter-set-requirements"
                         }
         
                         It -Tag Test 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
