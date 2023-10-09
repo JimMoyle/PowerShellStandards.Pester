@@ -60,6 +60,23 @@ function Test-Cmdlet {
                             'PipelineVariable'
                         )
                         $parameters = $function.Parameters.Values | Where-Object { $builtinParameters -notcontains $_.Name }
+
+                        foreach ($parameter in $parameters) {
+                            if ($parameter.ParameterSets.Count -gt 2) {
+                                $paramSetNames = ($parameter.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
+                            }
+                        }
+                        
+                        $parameterSets = foreach ($set in $paramSetNames) {
+                            $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
+                                $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name }
+                                $output = [PSCustomObject]@{
+                                    SetName = $set
+                                    Params  = $paramNamesInSet
+                                }
+                                Write-Output $output
+                            }
+                        }
                     }
         
                     Context 'General' {
@@ -243,7 +260,7 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It -Tag Test "A cmdlet should not have too many parameters. For a better user experience, limit the number of parameters." {
+                        It -Tag WIP "A cmdlet should not have too many parameters. For a better user experience, limit the number of parameters." {
                             $parameters.Count | Should -BeLessThan ($MaxParameters + 1) -Because "Cmdlet has $($parameters.Count) parameters.`nThis should be simplified or split into multiple cmdlets. Max Tested was $MaxParameters.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                         }
         
@@ -257,7 +274,7 @@ function Test-Cmdlet {
                                 $positionalParams | Measure-Object | Select-Object -ExpandProperty Count | Should -BeLessThan 5 
                             }
                         }
-        
+
                         It 'Each parameter set other than default must have at least one unique mandatory parameter. If your cmdlet is designed to be run without parameters, the unique parameter cannot be mandatory. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks' {
                             if ($function.ParameterSets.Count -gt 1 -and $parameters.Attributes.Mandatory -contains $true) {
         
@@ -308,46 +325,72 @@ function Test-Cmdlet {
                         It -Tag WIP 'Support Parameter Sets when necessary. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-parameter-sets' {
                             #$function.ParameterSets.Count | Should -BeGreaterThan 1
                         }
-        
-                        It -Tag Test 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
-                            $optionalParams = foreach ($param in $parameters) { 
-                                if ($param.Attributes.Mandatory -ne $true) {
-                                    Write-Output $param.Name 
-                                }
-                            }
 
-                            foreach ($param in $optionalParams) {
+                        It 'Parameter Sets must be unique from each other.' {
+                            
+                            foreach ($param in $parameters) {
                                 if ($param.ParameterSets.Count -gt 2) {
                                     $paramSets = ($param.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
                                 }
                             }
-
+                            
                             $parameterArrays = foreach ($set in $paramSets) {
                                 $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
                                     $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name } | Select-Object -ExpandProperty Name
-                                    [PSCustomObject]@{
+                                    Write-Output [PSCustomObject]@ {
                                         SetName = $set
                                         Params = $paramNamesInSet
                                     }
                                 }
                             }
-
-                            $commonParams = $parameterArrays.Params | Group-Object | Where-Object Count -gt 1 | Select-Object -ExpandProperty Name
-
-                            $uniqueParams = $parameterArrays.Params | Where-Object { $commonParams -notcontains $_ }
-
-                            $uniqueParams | Should -Not -BeNullOrEmpty -Because "Cmdlet has multiple parameter sets and does not have a default parameter set.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02"
-
-                            #TODO make sure at least one of the unique parmas per param set is Mandatory below is copilot code
-                            foreach ($set in $function.ParameterSets) {
-                                $uniqueParamsInSet = $uniqueParams | Where-Object { $set.Parameters.Name -contains $_ }
-                                $mandatoryUniqueParamsInSet = $uniqueParamsInSet | Where-Object { $_.Mandatory -eq $true }
-                                if ($null -eq $mandatoryUniqueParamsInSet){
-                                    $function.ParameterSets.DefaultParameterSetName | Should -not -BeNullOrEmpty -Because "Cmdlet has multiple parameter sets which might not be resolved and does not have a default parameter set.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02"
-                                } 
-                            }
-
                             
+                            $uniqueParams = $parameterArrays.Params | Group-Object | Where-Object Count -eq 1 | Select-Object -ExpandProperty Name
+                            
+                            $uniqueParams | Should -Not -BeNullOrEmpty -Because "The Parameter Sets $($paramSets -join ', ') appear to contain the same parameters, parameter sets should contain unique parmaeter combinations.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#parameter-set-requirements"
+                        }
+        
+                        It -Tag Test 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
+                            if ($null -ne $function.DefaultParameterSetName) {
+                                $defaultParamSet = $true
+                            }
+                            
+                            foreach ($param in $parameters) {
+                                if ($param.ParameterSets.Count -gt 2) {
+                                    $paramSets = ($param.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
+                                }
+                            }
+                            
+                            $parameterArrays = foreach ($set in $paramSets) {
+                                $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
+                                    $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name }
+                                    $output = [PSCustomObject]@{
+                                        SetName = $set
+                                        Params  = $paramNamesInSet
+                                    }
+                                    Write-Output $output
+                                }
+                            }
+                            
+                            $uniqueParams = $parameterArrays.Params.Name | Group-Object | Where-Object Count -lt $paramsets.count
+                            
+                            foreach ($set1 in $parameterArrays) {
+                                foreach ($set2 in $parameterArrays) {
+                                    if ($set1.SetName -ne $set2.SetName) {
+                                        $set1Unique = $set1.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
+                                        $set1MandCount = $set1Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
+                                        $set2Unique = $set2.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
+                                        $set2MandCount = $set2Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
+                                        if ($set1MandCount -eq 0 -and $set2MandCount -gt 0) {
+                                            $needsDefault = $false
+                                        }
+                                        if ($set1MandCount -eq $set2MandCount) {
+                                            $needsDefault = $true
+                                        }
+                            
+                                        $needsDefault -and (-not($defaultParamSet)) | Should -Be $true -Because "The Parameter Sets $($set1.SetName) and $($set2.SetName) appear to contain the parameters which cannot always be resolved and also doesn't contain a default parameterset.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#default-parameter-sets"
+                                    }
+                                }
+                            }
                         }
         
                         It -Tag WIP 'Supports arrays for Parameters where appropriate. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-arrays-for-parameters' {
@@ -367,7 +410,7 @@ function Test-Cmdlet {
                                     Write-Output $type.ToString()
                                 }
                             }
-                            $typeTest | Should -Not -BeNullOrEmpty -Because "$type is specified as the output and does not exist.`n`nThe OutputType attribute identifies the .NET Framework types returned by a cmdlet, function, or script. By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumention link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/outputtype-attribute-declaration?view=powershell-7.3"
+                            $typeTest | Should -Not -BeNullOrEmpty -Because "$type is specified as the output and does not exist.`n`nThe OutputType attribute identifies the .NET Framework types returned by a cmdlet, function, or script. By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumention link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-outputtype-attribute-rc04"
                         }
         
                         It -Tag WIP 'Displays appropriate output properties by default. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/custom-formatting-files?view=powershell-7.3#format-views' {
