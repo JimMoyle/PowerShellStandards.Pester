@@ -101,7 +101,7 @@ function Test-Cmdlet {
                         }
         
                         It 'Must use singular parameter Name.' {
-                            $function.Name | Should -Not -Match '.*(?:[^s|statu])s$' -Because "Avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                            $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou|Privilege])s$' -Because "Avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
                         }
         
                         It 'Must use Pascal Case for cmdlet name. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02' {
