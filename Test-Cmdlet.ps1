@@ -60,23 +60,6 @@ function Test-Cmdlet {
                             'PipelineVariable'
                         )
                         $parameters = $function.Parameters.Values | Where-Object { $builtinParameters -notcontains $_.Name }
-
-                        foreach ($parameter in $parameters) {
-                            if ($parameter.ParameterSets.Count -gt 2) {
-                                $paramSetNames = ($parameter.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
-                            }
-                        }
-                        
-                        $parameterSets = foreach ($set in $paramSetNames) {
-                            $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
-                                $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name }
-                                $output = [PSCustomObject]@{
-                                    SetName = $set
-                                    Params  = $paramNamesInSet
-                                }
-                                Write-Output $output
-                            }
-                        }
                     }
         
                     Context 'General' {
@@ -138,7 +121,7 @@ function Test-Cmdlet {
                         }
 
                         It 'Should not use the verb Invoke' {
-                            $function.Verb | Should -Not -Be 'Invoke' -Because "Uses the verb Invoke. Use the verb to describe the general scope of the action, and use parameters to further refine the action of the cmdlet. It is unlikely that there is not a more specific verb than Invoke.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.3#verb-naming-recommendations"
+                            $function.Verb | Should -Not -Be 'Invoke' -Because "Uses the verb Invoke. Invoke should only be used to perform an action, such as running a command or a method. This action should also only be synchronous, use Start- for async. It is unlikely that there is not a more specific verb to use than Invoke.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.3#verb-naming-recommendations"
                         } 
                     }
             
