@@ -83,8 +83,14 @@ function Test-Cmdlet {
                             $response | Should -Be 200 -Because "Every cmdlet should have an online help page`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_cmdletbindingattribute?view=powershell-7.3#helpuri"
                         }
         
-                        It 'Must use singular parameter Name.' {
-                            $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou|Privilege])s$' -Because "Avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                        It 'Must use singular function Name.' {
+                            $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou|Privilege])s$' -Because "To enhance the user experience, the noun that you choose for a cmdlet name should be singular. For example, use the name Get-Process instead of Get-Processes. It is best to follow this rule for all cmdlet names, even when a cmdlet is likely to act upon more than one item.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-a-specific-noun-for-a-cmdlet-name-sd01"
+                        }
+
+                        It 'Must use singular parameter name.' {
+                            foreach ($parameter in $parameters) {
+                                $parameter.Name -like "*s" -and $parameter.Name -notmatch "(Privileges)|(Status)|(ous)|(ss)|(ics)$" | Should -Not -BeTrue -Because "Avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                            }
                         }
         
                         It 'Must use Pascal Case for cmdlet name. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02' {
@@ -407,7 +413,7 @@ function Test-Cmdlet {
             $pesterConfig.Run.ScriptBlock = $pesterScriptblock
             $pesterConfig.Run.Passthru = $true
             $pesterConfig.Output.Verbosity = 'None'
-            $pesterConfig.Filter.Tag = 'Test'
+            #$pesterConfig.Filter.Tag = 'Test'
         
             if ($AddOptionalTest) {
                 $pesterConfig.Filter.ExcludeTag = 'WIP'
