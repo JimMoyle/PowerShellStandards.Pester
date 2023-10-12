@@ -77,6 +77,15 @@ function Test-Cmdlet {
 
                 Describe "Test-Cmdlet" {
 
+
+                    BeforeDiscovery {
+                        $function = Get-Command -Name $cmdlet
+                        if (($function.ScriptBlock | Measure-Object).Count -eq 0) {
+                            $compiled = $true
+                        }
+                    }
+
+
                     BeforeAll {
 
                         $verbs = (Get-Verb).Verb
@@ -92,7 +101,8 @@ function Test-Cmdlet {
                             'InformationVariable',
                             'OutVariable',
                             'OutBuffer',
-                            'PipelineVariable'
+                            'PipelineVariable',
+                            'UseTransaction'
                         )
                         $parameters = $function.Parameters.Values | Where-Object { $builtinParameters -notcontains $_.Name }
                     }
@@ -101,6 +111,23 @@ function Test-Cmdlet {
                         It 'Must use an PowerShell approved verb.' {
                             if (-not ($function.CommandType -eq 'Alias')) {
                                 $function.Verb | Should -BeIn $verbs -Because "You must choose an appropriate verb for your cmdlet.`n`nTo ensure consistency between the cmdlets that you create, the cmdlets that are provided by PowerShell, and the cmdlets that are designed by others.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.3#verb-naming-recommendations"
+                            }
+                        }
+
+                        It 'Must not use special characters in the name' {
+                            $function.Name | Should -Not -Match '[#\(\)\{\}\[\]&/\\$\^;:"''<>|\?@`*%+=~]' -Because "Cmdlet names should not contain special characters.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#cmdlet-names-characters-that-cannot-be-used-rd02"
+                        }
+
+                        It 'Must not contain two or more hyphens in the name' {
+                            $function.Name | Should -Not -Match '.*-.*-.*' -Because "Cmdlet names should not contain special characters.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#cmdlet-names-characters-that-cannot-be-used-rd02"
+                        }
+
+                        It -Skip:$compiled 'Must not use common parameter names as your own' {
+                            $badParamNames = $builtinParameters += 'Confirm'
+                            $badParamNames = $badParamNames += 'WhatIf'
+                            if (-not ($function.CmdletBinding)) {
+                                $comparison = Compare-Object -ReferenceObject $badParamNames -DifferenceObject $parameters.Name -IncludeEqual -ExcludeDifferent | Select-Object -ExpandProperty InputObject 
+                                $comparison | Should -BeNullOrEmpty -Because "Cmdlet names should not contain special characters.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#parameters-names-that-cannot-be-used-rd03"
                             }
                         }
         
@@ -117,14 +144,26 @@ function Test-Cmdlet {
                             }
                             $response | Should -Be 200 -Because "Every cmdlet should have an online help page`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_cmdletbindingattribute?view=powershell-7.3#helpuri"
                         }
+
+                        It 'Supports Confirmation Requests for operations that modify the system' {
+                            if ('Stop', 'Remove', 'Revoke' -contains $function.Verb) {
+                                $parameters.Name | Should -Contain 'Confirm' -Because "To make these calls the cmdlet must specify that it supports confirmation requests by setting the SupportsShouldProcess keyword of the Cmdlet attribute.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#support-confirmation-requests-rd04"
+                            }
+                        }
+
+                        It -Tag WIP 'Support Force Parameter for Interactive Sessions' {
+                            'https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#support-force-parameter-for-interactive-sessions-rd05'
+                        }
         
-                        It 'Must use singular function Name.' {
+                        It 'Must use singular cmdlet Name.' {
                             $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou|Privilege])s$' -Because "To enhance the user experience, the noun that you choose for a cmdlet name should be singular. For example, use the name Get-Process instead of Get-Processes. It is best to follow this rule for all cmdlet names, even when a cmdlet is likely to act upon more than one item.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-a-specific-noun-for-a-cmdlet-name-sd01"
                         }
 
                         It 'Must use singular parameter name.' {
                             foreach ($parameter in $parameters) {
-                                $parameter.Name -like "*s" -and $parameter.Name -notmatch "(Privileges)|(Status)|(ous)|(ss)|(ics)$" | Should -Not -BeTrue -Because "Avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                                if ($parameter.ParameterType.FullName -notin 'System.Int16', 'System.UInt16', 'System.Int32', 'System.UInt32', 'System.Int64', 'System.UInt64', 'System.IntPtr', 'System.UIntPtr') {
+                                    $parameter.Name -like "*s" -and $parameter.Name -notmatch "(Privileges)|(Status)|(ous)|(ss)|(ics)$" | Should -Not -BeTrue -Because "$($parameter.Name) appears to be plural, avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                                }
                             }
                         }
         
@@ -142,27 +181,30 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It -Tag Optional 'Do not use parameters too close to Standard Parameter Names and Types.' {
+                        It -Tag Optional 'If possible use a standard parameter name.' {
                             $stdParams = Get-Content StandardParameterNames.txt
                             foreach ($param in $parameters) {
                                 if ($stdParams -notcontains $param.Name) {
                                     foreach ($stdParam in $stdParams) {
-                                        if ($parameters.Name -notcontains $stdParam) {
-                                            $param.Name | Should -Not -BeLike "*$stdParam*" -Because "Cmdlet parameter names should be consistent across the cmdlets that you design.`nThe following topics list the parameter names that we recommend you use when you declare cmdlet parameters. The topics also describe the recommended data type and functionality of each parameter.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/standard-cmdlet-parameter-names-and-types?view=powershell-7.3"
+                                        if ($parameters.Name -notcontains $stdParam -and $param.Name -ne "No$stdParam") {
+                                            $param.Name | Should -Not -BeLike "??$stdParam" -Because "$($param.Name) seems to be close to the standard parameter name $stdParam. Cmdlet parameter names should be consistent across the cmdlets that you design.`nThe following topics list the parameter names that we recommend you use when you declare cmdlet parameters. The topics also describe the recommended data type and functionality of each parameter.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/standard-cmdlet-parameter-names-and-types?view=powershell-7.3"
+                                            $param.Name | Should -Not -BeLike "$stdParam??" -Because "$($param.Name) seems to be close to the standard parameter name $stdParam. Cmdlet parameter names should be consistent across the cmdlets that you design.`nThe following topics list the parameter names that we recommend you use when you declare cmdlet parameters. The topics also describe the recommended data type and functionality of each parameter.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/standard-cmdlet-parameter-names-and-types?view=powershell-7.3"
                                         }
                                     }
                                 }
                             }
                         }
         
-                        It 'Must have a Force parameter if you set your ConfirmImpact to high' {
-                            if ($function.CommandType -ne 'cmdlet' -and $function.ScriptBlock -match "ConfirmImpact\s*=\s*`[`"|'`]High`[`"|'`]" -and $parameters.Name -contains 'Confirm') {
+                        It -Skip:$compiled 'Must have a Force parameter if you set your ConfirmImpact to high' {
+                            if ($function.ScriptBlock -match "ConfirmImpact\s*=\s*`[`"|'`]High`[`"|'`]" -and $parameters.Name -contains 'Confirm') {
                                 $parameters | Where-Object { $_.Name -eq 'Force' } | Should -Not -BeNullOrEmpty -Because "If you set your ConfirmImpact to high, you should allow your users to suppress it with -Force.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/learn/deep-dives/everything-about-shouldprocess?view=powershell-7.3#shouldprocess--force"
                             }
                         }
 
                         It 'Should not use the verb Invoke' {
-                            $function.Verb | Should -Not -Be 'Invoke' -Because "Uses the verb Invoke. Invoke should only be used to perform an action, such as running a command or a method. This action should also only be synchronous, use Start- for async. It is unlikely that there is not a more specific verb to use than Invoke.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.3#verb-naming-recommendations"
+                            if ($function.Noun -ne 'Item' -and $function.Noun -notlike "*script*" -and $function.Noun -notlike "*command*" -and $function.Noun -notlike "*method*") {
+                                $function.Verb | Should -Not -Be 'Invoke' -Because "Uses the verb Invoke. Invoke should only be used to perform an action, such as running a command or a method. This action should also only be synchronous, use Start- for async. It is unlikely that there is not a more specific verb to use than Invoke.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands?view=powershell-7.3#verb-naming-recommendations"
+                            }
                         } 
                     }
             
@@ -201,12 +243,14 @@ function Test-Cmdlet {
                         }
         
                         It 'Must have positional parameters for the most used inputs' {
-                            $positionalParams = foreach ($param in $parameters) { 
-                                if ($param.Attributes.Position -ne -2147483648) { 
-                                    $param.Attributes.Position 
-                                } 
+                            if ($parameters.attributes.Mandatory -contains $true) {
+                                $positionalParams = foreach ($param in $parameters) { 
+                                    if ($param.Attributes.Position -ne -2147483648) { 
+                                        Write-Output $param.Attributes.Position 
+                                    } 
+                                }
+                                $positionalParams | Should -Not -BeNullOrEmpty -Because "Good cmdlet design recommends that the most-used parameters be declared as positional parameters.`nThe user then does not need to have to enter the parameter name when the cmdlet is run. If the cmdlet has several mandatory parameters consider setting them as positional, up to a maximum of 4.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/types-of-cmdlet-parameters?view=powershell-7.3#positional-and-named-parameters"
                             }
-                            $positionalParams | Should -Not -BeNullOrEmpty -Because "Good cmdlet design recommends that the most-used parameters be declared as positional parameters.`nThe user then does not need to have to enter the parameter name when the cmdlet is run. If the cmdlet has several mandatory parameters consider setting them as positional, up to a maximum of 4.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/types-of-cmdlet-parameters?view=powershell-7.3#positional-and-named-parameters"
                         }
         
                         It -Tag Optional 'Uses Strongly-Typed .NET Framework Types for Parameters.' {
@@ -227,7 +271,7 @@ function Test-Cmdlet {
                         }
         
                         It 'Supports pipeline input in any way.' {
-                            $pipeParams = foreach ($param in $parameters) { if ($param.attributes.ValueFromPipeline -eq $true -or $param.attributes.ValueFromPipelineByPropertyName -eq $true) { 'PipeTrue' } }
+                            $pipeParams = foreach ($param in $parameters) { if ($param.attributes.ValueFromPipeline -eq $true -or $param.attributes.ValueFromPipelineByPropertyName -eq $true) { Write-Output $param.Name } }
                             $pipeParams | Should -Not -BeNullOrEmpty -Because "Powershell cmdlets should be expected to be run in the middle of a pipeline.`nIn each parameter set for a cmdlet, include at least one parameter that supports input from the pipeline. Support for pipeline input allows the user to retrieve data or objects, to send them to the correct parameter set, and to pass the results directly to a cmdlet.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-input-from-the-pipeline"
                         } 
         
@@ -242,7 +286,7 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'If Path is a parameter it should have the PSPath alias.' {
+                        It -Skip:$compiled 'If Path is a parameter it should have the PSPath alias.' {
                             if ($parameters.Name -contains 'Path') {
                                 $pathParam = $parameters | Where-Object { $_.Name -eq 'Path' }
                                 $pathParam.Aliases | Should -Contain 'PSPath' -Because "This alias ensures that when working with different PowerSherll providers pipelining works.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-windows-powershell-paths"
@@ -251,6 +295,7 @@ function Test-Cmdlet {
         
                         It 'If Path is a parameter it should have the string type. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-windows-powershell-paths' {
                             if ($parameters.Name -contains 'Path') {
+                                $param
                                 $pathParam = $parameters | Where-Object { $_.Name -eq 'Path' }
                                 $pathParam.ParameterType.Name | Should -BeLike 'String*'
                             }
@@ -269,8 +314,8 @@ function Test-Cmdlet {
                                 #Range needs to be Int64, so can't test 'UInt64', 'IntPtr', 'UIntPtr'
                                 $numberTypes = @('Int16', 'UInt16', 'Int32', 'UInt32', 'Int64')
                                 if ($numberTypes -contains $param.ParameterType.Name) {
-                                    $param.Attributes.MinRange | Should -Not -BeNullOrEmpty -Because "This ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
-                                    $param.Attributes.MaxRange | Should -Not -BeNullOrEmpty -Because "This ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
+                                    $param.Attributes.MinRange | Should -Not -BeNullOrEmpty -Because "$($param.Name) is a $($param.ParameterType.Name) format which gives very large range. Consider adding a range to this parameter, this ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
+                                    $param.Attributes.MaxRange | Should -Not -BeNullOrEmpty -Because "$($param.Name) is a $($param.ParameterType.Name) format which gives very large range. Consider adding a range to this parameter, this ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
                                 }
                             }
                         }
@@ -299,8 +344,8 @@ function Test-Cmdlet {
                             }
                         }
 
-                        It 'Each parameter set other than default must have at least one unique mandatory parameter. If your cmdlet is designed to be run without parameters, the unique parameter cannot be mandatory. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks' {
-                            if ($function.ParameterSets.Count -gt 1 -and $parameters.Attributes.Mandatory -contains $true) {
+                        It -Tag Optional 'Each parameter set other than default must have at least one unique mandatory parameter.' {
+                            if ($function.ParameterSets.Count -gt 2 -and $parameters.Attributes.Mandatory -contains $true) {
         
                                 $nonDefaultSets = $function.ParameterSets | Where-Object { $_.IsDefault -ne $true }
         
@@ -318,7 +363,7 @@ function Test-Cmdlet {
                                             Write-Output "Mandatory Parameter: $($param.Name)"
                                         } 
                                     }
-                                    $mandatoryParams | Measure-Object | Select-Object -ExpandProperty Count | Should -BeGreaterThan 0
+                                    $mandatoryParams | Measure-Object | Select-Object -ExpandProperty Count | Should -BeGreaterThan 0 -Because  "If your cmdlet is designed to be run without parameters, the unique parameter cannot be mandatory.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                                 }
                             }
                         }
@@ -362,10 +407,11 @@ function Test-Cmdlet {
                                 $parameterArrays = foreach ($set in $paramSets) {
                                     $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
                                         $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name } | Select-Object -ExpandProperty Name
-                                        Write-Output [PSCustomObject]@ {
+                                        $output = [PSCustomObject]@{
                                             SetName = $set
-                                            Params = $paramNamesInSet
+                                            Params  = $paramNamesInSet
                                         }
+                                        Write-Output $output
                                     }
                                 }
                             
@@ -375,45 +421,45 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It -Tag Test 'Has a default Parameter set when Powershell does not have enough information to determine which parameter set to use. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-cmdlet-attribute-rc02' {
-                            if ($null -ne $function.DefaultParameterSetName) {
-                                $defaultParamSet = $true
-                            }
-                            
-                            foreach ($param in $parameters) {
-                                if ($param.ParameterSets.Count -gt 2) {
-                                    $paramSets = ($param.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
-                                }
-                            }
-                            
-                            $parameterArrays = foreach ($set in $paramSets) {
-                                $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
-                                    $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name }
-                                    $output = [PSCustomObject]@{
-                                        SetName = $set
-                                        Params  = $paramNamesInSet
+                        It -Tag Test 'Has a default Parameter set if necessary.' {
+
+                            if (($function.DefaultParameterSet | Measure-Object).Count -eq 0 ) {
+                             
+                                foreach ($param in $parameters) {
+                                    if ($param.ParameterSets.Count -gt 2) {
+                                        $paramSets = ($param.ParameterSets.GetEnumerator() | Where-Object Key -ne '__AllParameterSets').key
                                     }
-                                    Write-Output $output
                                 }
-                            }
-                            
-                            $uniqueParams = $parameterArrays.Params.Name | Group-Object | Where-Object Count -lt $paramsets.count
-                            
-                            foreach ($set1 in $parameterArrays) {
-                                foreach ($set2 in $parameterArrays) {
-                                    if ($set1.SetName -ne $set2.SetName) {
-                                        $set1Unique = $set1.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
-                                        $set1MandCount = $set1Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
-                                        $set2Unique = $set2.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
-                                        $set2MandCount = $set2Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
-                                        if ($set1MandCount -eq 0 -and $set2MandCount -gt 0) {
-                                            $needsDefault = $false
+                                
+                                $parameterArrays = foreach ($set in $paramSets) {
+                                    $function.ParameterSets | Where-Object { $_.Name -eq $set } | ForEach-Object { 
+                                        $paramNamesInSet = $_.Parameters | Where-Object { $builtinParameters -notcontains $_.Name }
+                                        $output = [PSCustomObject]@{
+                                            SetName = $set
+                                            Params  = $paramNamesInSet
                                         }
-                                        if ($set1MandCount -eq $set2MandCount) {
-                                            $needsDefault = $true
-                                        }
-                            
-                                        $needsDefault -and (-not($defaultParamSet)) | Should -Be $true -Because "The Parameter Sets $($set1.SetName) and $($set2.SetName) appear to contain the parameters which cannot always be resolved and also doesn't contain a default parameterset.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#default-parameter-sets"
+                                        Write-Output $output
+                                    }
+                                }
+                                
+                                $uniqueParams = $parameterArrays.Params.Name | Group-Object | Where-Object Count -lt $paramsets.count
+                                
+                                foreach ($set1 in $parameterArrays) {
+                                    foreach ($set2 in $parameterArrays) {
+                                        if ($set1.SetName -ne $set2.SetName) {
+                                            $set1Unique = $set1.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
+                                            $set1MandCount = $set1Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
+                                            $set2Unique = $set2.Params | Where-Object { $uniqueParams.Name -Contains $_.Name }
+                                            $set2MandCount = $set2Unique | Where-Object { $_.Attributes.Mandatory -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
+                                            if ($set1MandCount -eq 0 -and $set2MandCount -gt 0) {
+                                                $needsDefault = $false
+                                            }
+                                            if ($set1MandCount -eq $set2MandCount) {
+                                                $needsDefault = $true
+                                            }
+                                    
+                                            $needsDefault | Should -Be $false -Because "The Parameter Sets $($set1.SetName) and $($set2.SetName) appear to contain the parameters which cannot always be resolved and also doesn't contain a default parameterset.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/cmdlet-parameter-sets?view=powershell-7.3#default-parameter-sets"
+                                        }                           
                                     }
                                 }
                             }
@@ -426,14 +472,25 @@ function Test-Cmdlet {
         
                     Context 'Output' {
         
-                        It 'Specify the OutputType Attribute.' {
-                            $function.OutputType | Should -Not -BeNullOrEmpty -Because "By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-outputtype-attribute-rc04"
+                        It -Skip:$compiled 'Specify the OutputType Attribute.' {
+                            if ($parameters.Name -contains 'PassThru') {
+                                $outType = 'PassThru'
+                            }
+                            else {
+                                $outType = $function.OutputType
+                            }
+                            $outType | Should -Not -BeNullOrEmpty -Because "By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-outputtype-attribute-rc04"
                         }
         
-                        It -Tag Test 'OutputType Attribute must be valid. ' {
-                            $typeTest = foreach ($type in $function.OutputType.Type) {
-                                if ($null -ne $type.BaseType) {
-                                    Write-Output $type.ToString()
+                        It -Skip:$compiled 'OutputType Attribute must be valid. ' {
+                            if ($parameters.Name -contains 'PassThru') {
+                                $typetest = 'PassThru'
+                            }
+                            else {
+                                $typeTest = foreach ($type in $function.OutputType.Type) {
+                                    if ($null -ne $type.BaseType) {
+                                        Write-Output $type.ToString()
+                                    }
                                 }
                             }
                             $typeTest | Should -Not -BeNullOrEmpty -Because "$type is specified as the output and does not exist.`n`nThe OutputType attribute identifies the .NET Framework types returned by a cmdlet, function, or script. By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumention link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-outputtype-attribute-rc04"
@@ -473,9 +530,9 @@ function Test-Cmdlet {
                 }
                 Summary {
                     $testOutput = [PSCustomObject]@{
-                        Name        = $cmdlet
-                        PassedCount = $fullResult.PassedCount
-                        FailedCount = $fullResult.FailedCount
+                        Name   = $cmdlet
+                        Passed = $fullResult.PassedCount
+                        Failed = $fullResult.FailedCount
                     }
                     break
                 }
