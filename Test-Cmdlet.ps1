@@ -162,7 +162,7 @@ function Test-Cmdlet {
                         It 'Must use singular parameter name.' {
                             foreach ($parameter in $parameters) {
                                 if ($parameter.ParameterType.FullName -notin 'System.Int16', 'System.UInt16', 'System.Int32', 'System.UInt32', 'System.Int64', 'System.UInt64', 'System.IntPtr', 'System.UIntPtr') {
-                                    $parameter.Name -like "*s" -and $parameter.Name -notmatch "(Privileges)|(Status)|(ous)|(ss)|(ics)$" | Should -Not -BeTrue -Because "$($parameter.Name) appears to be plural, avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
+                                    $parameter.Name -like "*s" -and $parameter.Name -notmatch "(Status)|(ous)|(ss)|(ics)$" | Should -Not -BeTrue -Because "$($parameter.Name) appears to be plural, avoid using plural names for parameters whose value is a single element. This includes parameters that take arrays or lists because the user might supply an array or list with only one element.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-singular-parameter-names"
                                 }
                             }
                         }
@@ -314,7 +314,9 @@ function Test-Cmdlet {
                                 #Range needs to be Int64, so can't test 'UInt64', 'IntPtr', 'UIntPtr'
                                 $numberTypes = @('Int16', 'UInt16', 'Int32', 'UInt32', 'Int64')
                                 if ($numberTypes -contains $param.ParameterType.Name) {
-                                    $param.Attributes.MinRange | Should -Not -BeNullOrEmpty -Because "$($param.Name) is a $($param.ParameterType.Name) format which gives very large range. Consider adding a range to this parameter, this ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
+                                    $rangeMin = ($param.ParameterType)::MinValue
+                                    $rangeMax = ($param.ParameterType)::MaxValue
+                                    $param.Attributes.MinRange | Should -Not -BeNullOrEmpty -Because "$($param.Name) is a $($param.ParameterType.Name) format which gives a range of $rangeMin to $rangeMax. Consider adding a range to this parameter, this ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
                                     $param.Attributes.MaxRange | Should -Not -BeNullOrEmpty -Because "$($param.Name) is a $($param.ParameterType.Name) format which gives very large range. Consider adding a range to this parameter, this ensures the user receives the correct error message as early as possible.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/validating-parameter-input?view=powershell-7.3#validaterange"
                                 }
                             }
