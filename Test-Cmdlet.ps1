@@ -335,14 +335,14 @@ function Test-Cmdlet {
                             $parameters.Count | Should -BeLessThan ($ParametersMax + 1) -Because "Cmdlet has $($parameters.Count) parameters.`nThis should be simplified or split into multiple cmdlets. Max Tested was $ParametersMax.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                         }
         
-                        It 'When you specify positional parameters, limit the number of positional parameters in a parameter set to less than five. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks' {
+                        It 'Has no more than 4 positional parameters' {
                             foreach ($set in $function.ParameterSets) {
                                 $positionalParams = foreach ($param in $set.Parameters) { 
                                     if ($param.attributes.position -ne -2147483648) { 
                                         Write-Output "Positional Parameter $($param.attributes.position): $($param.Name)"
                                     } 
                                 }
-                                $positionalParams | Measure-Object | Select-Object -ExpandProperty Count | Should -BeLessThan 5 
+                                $positionalParams | Measure-Object | Select-Object -ExpandProperty Count | Should -BeLessThan 5 -Because "When you specify positional parameters, limit the number of positional parameters in a parameter set to less than five.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                             }
                         }
 
@@ -381,7 +381,7 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'Only one parameter in a parameter set should declare ValueFromPipeline = true. ' {
+                        It 'Only one parameter in a parameter set should pipe by value. ' {
                             foreach ($set in $function.ParameterSets) {
                                 $pipeParams = foreach ($param in $set.Parameters) { 
                                     if ($param.Attributes.ValueFromPipeline -eq $true) { 
@@ -389,7 +389,7 @@ function Test-Cmdlet {
                                     } 
                                 }
                                 $paramList = $pipeParams -join ', '
-                                $pipeParams.Count | Should -BeLessThan 2 -Because "Parameter Set $set has multiple parameters that accept pipeline input. The conflicting parameters are: $paramList`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3"
+                                $pipeParams.Count | Should -BeLessThan 2 -Because "Parameter Set `'$($set.Name)`' has multiple parameters that accept pipeline input. The conflicting parameters are: $paramList`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3"
                             }
                         }
         
