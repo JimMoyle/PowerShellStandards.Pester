@@ -370,14 +370,14 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'No parameter set should contain more than one positional parameter with the same position. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks' {
+                        It 'No parameter set should contain more than one positional parameter with the same position.' {
                             foreach ($set in $function.ParameterSets) {
                                 $positionalParams = foreach ($param in $set.Parameters) { 
                                     if ($param.Attributes.position -ne -2147483648) { 
                                         $param.Attributes.position | Select-Object -First 1
                                     } 
                                 }
-                        ($positionalParams | Sort-Object -Unique).Count | Should -Be $positionalParams.Count
+                        ($positionalParams | Sort-Object -Unique).Count | Should -Be $positionalParams.Count -Because " https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                             }
                         }
         
