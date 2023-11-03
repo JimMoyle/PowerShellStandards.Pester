@@ -122,6 +122,14 @@ function Test-Cmdlet {
                             $function.Name | Should -Not -Match '.*-.*-.*' -Because "Cmdlet names should not contain special characters.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#cmdlet-names-characters-that-cannot-be-used-rd02"
                         }
 
+                        It 'Must use singular cmdlet Name.' {
+                            $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou])s$' -Because "To enhance the user experience, the noun that you choose for a cmdlet name should be singular. For example, use the name Get-Process instead of Get-Processes. It is best to follow this rule for all cmdlet names, even when a cmdlet is likely to act upon more than one item.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-a-specific-noun-for-a-cmdlet-name-sd01"
+                        }
+                        
+                        It 'Must use Pascal Case for cmdlet name. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02' {
+                            $function.Name | Should -MatchExactly "^(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+-(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+$" -Because "Use Pascal case for cmdlet names.`nIn other words, capitalize the first letter of verb and all terms used in the noun. For example, `"Clear-ItemProperty`"`n`nDocumentation link:`nhttps://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02"
+                        }
+
                         It -Skip:$compiled 'Must not use common parameter names as your own' {
                             $badParamNames = $builtinParameters += 'Confirm'
                             $badParamNames = $badParamNames += 'WhatIf'
@@ -152,13 +160,10 @@ function Test-Cmdlet {
                         }
 
                         It -Tag WIP 'Support Force Parameter for Interactive Sessions' {
+                            #Absolutely no clue how to code this
                             'https://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#support-force-parameter-for-interactive-sessions-rd05'
                         }
         
-                        It 'Must use singular cmdlet Name.' {
-                            $function.Name | Should -Not -Match '.*(?:[^s|Statu|ou|Privilege])s$' -Because "To enhance the user experience, the noun that you choose for a cmdlet name should be singular. For example, use the name Get-Process instead of Get-Processes. It is best to follow this rule for all cmdlet names, even when a cmdlet is likely to act upon more than one item.`n`nDocumentation link:`nhttps://learn.microsoft.com/en-gb/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-a-specific-noun-for-a-cmdlet-name-sd01"
-                        }
-
                         It 'Must use singular parameter name.' {
                             foreach ($parameter in $parameters) {
                                 if ($parameter.ParameterType.FullName -notin 'System.Int16', 'System.UInt16', 'System.Int32', 'System.UInt32', 'System.Int64', 'System.UInt64', 'System.IntPtr', 'System.UIntPtr') {
@@ -166,11 +171,7 @@ function Test-Cmdlet {
                                 }
                             }
                         }
-        
-                        It 'Must use Pascal Case for cmdlet name. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02' {
-                            $function.Name | Should -MatchExactly "^(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+-(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+$" -Because "Use Pascal case for cmdlet names.`nIn other words, capitalize the first letter of verb and all terms used in the noun. For example, `"Clear-ItemProperty`"`n`nDocumentation link:`nhttps://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02"
-                        }
-        
+              
                         It 'Must use Pascal Case for parameter name.' {
                             $parameters.Name | Should -MatchExactly '^(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+$' -Because "Use Pascal case for parameter names.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-parameter-names"
                         }
