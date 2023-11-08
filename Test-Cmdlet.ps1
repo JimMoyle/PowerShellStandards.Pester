@@ -127,7 +127,7 @@ function Test-Cmdlet {
                         }
                         
                         It 'Must use Pascal Case for cmdlet name. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02' {
-                            $function.Name | Should -MatchExactly "^(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+-(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+$" -Because "Use Pascal case for cmdlet names.`nIn other words, capitalize the first letter of verb and all terms used in the noun. For example, `"Clear-ItemProperty`"`n`nDocumentation link:`nhttps://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02"
+                            $function.Name | Should -MatchExactly "^(?:[A-Z]{1,3}(?:[a-z0-9_])+)+[A-Z]{0,2}-(?:[A-Z]{1,3}(?:[a-z0-9_])+)+[A-Z]{0,2}$" -Because "Use Pascal case for cmdlet names.`nIn other words, capitalize the first letter of verb and all terms used in the noun. For example, `"Clear-ItemProperty`"`n`nDocumentation link:`nhttps://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-cmdlet-names-sd02"
                         }
 
                         It -Skip:$compiled 'Must not use common parameter names as your own' {
@@ -173,7 +173,7 @@ function Test-Cmdlet {
                         }
               
                         It 'Must use Pascal Case for parameter name.' {
-                            $parameters.Name | Should -MatchExactly '^(?:[A-Z]{1,3}(?:[a-z0-9_])+[A-Z]{0,2})+$' -Because "Use Pascal case for parameter names.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-parameter-names"
+                            $parameters.Name | Should -MatchExactly '^(?:[A-Z]{1,3}(?:[a-z0-9_])+)+[A-Z]{0,2}$' -Because "Use Pascal case for parameter names.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-pascal-case-for-parameter-names"
                         }
         
                         It -Tag Optional 'In most cases, Add, Set, and New cmdlets should support a PassThru parameter.' {
@@ -296,7 +296,6 @@ function Test-Cmdlet {
         
                         It 'If Path is a parameter it should have the string type. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-windows-powershell-paths' {
                             if ($parameters.Name -contains 'Path') {
-                                $param
                                 $pathParam = $parameters | Where-Object { $_.Name -eq 'Path' }
                                 $pathParam.ParameterType.Name | Should -BeLike 'String*'
                             }
@@ -326,9 +325,7 @@ function Test-Cmdlet {
                         It 'Makes sure that the type described by input object is valid. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/advisory-development-guidelines?view=powershell-7.3#support-an-inputobject-parameter-ad01' {
                             if ($parameters.Name -contains 'InputObject') {
                                 $inputObjectParam = $parameters | Where-Object { $_.Name -eq 'InputObject' }
-        
                                 { $inputObjectParam.ParameterType } | Should -Not -Throw
-        
                             }
                         }
         
@@ -349,7 +346,7 @@ function Test-Cmdlet {
 
                         It -Tag Optional 'Each parameter set other than default must have at least one unique mandatory parameter.' {
                             if ($function.ParameterSets.Count -gt 2 -and $parameters.Attributes.Mandatory -contains $true) {
-        
+
                                 $nonDefaultSets = $function.ParameterSets | Where-Object { $_.IsDefault -ne $true }
         
                                 foreach ($set in $nonDefaultSets) {
@@ -382,7 +379,7 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'Only one parameter in a parameter set should pipe by value. ' {
+                        It 'Only one parameter in a parameter set should pipe by value.' {
                             foreach ($set in $function.ParameterSets) {
                                 $pipeParams = foreach ($param in $set.Parameters) { 
                                     if ($param.Attributes.ValueFromPipeline -eq $true) { 
@@ -485,7 +482,7 @@ function Test-Cmdlet {
                             $outType | Should -Not -BeNullOrEmpty -Because "By specifying the output type of your cmdlets you make the objects returned by your cmdlet more discoverable by other cmdlets.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/required-development-guidelines?view=powershell-7.3#specify-the-outputtype-attribute-rc04"
                         }
         
-                        It -Skip:$compiled 'OutputType Attribute must be valid. ' {
+                        It -Skip:$compiled 'OutputType Attribute must be valid.' {
                             if ($parameters.Name -contains 'PassThru') {
                                 $typetest = 'PassThru'
                             }
