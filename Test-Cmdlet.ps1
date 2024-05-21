@@ -210,6 +210,12 @@ function Test-Cmdlet {
                     }
             
                     Context 'Input' {
+
+                        #TODO Switch parameters shouldn't have  a position https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
+
+                        #TODO Switch parameters shouldn't be mandatory, unless they are the only mandatory parameter in a parameterset https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
+        
+                        #TODO Must not conflict with existing names https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.4#manage-name-conflicts
         
                         It -Tag AutoRest 'Parameter must accept input (DontShow).' {
                             $noShowParams = foreach ($param in $parameters) { 
