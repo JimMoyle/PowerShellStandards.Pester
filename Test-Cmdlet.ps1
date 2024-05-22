@@ -211,6 +211,8 @@ function Test-Cmdlet {
             
                     Context 'Input' {
 
+                        #TODO Common parmater aliases shouldn't be used for other paramaeters. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/common-parameter-names?view=powershell-7.4#general-common-parameters
+
                         #TODO Switch parameters shouldn't have  a position https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
 
                         #TODO Switch parameters shouldn't be mandatory, unless they are the only mandatory parameter in a parameterset https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
@@ -300,17 +302,17 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'If Path is a parameter it should have the string type. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-windows-powershell-paths' {
+                        It 'If your cmdlet allows the user to specify a path, it should define a parameter of type String.' {
                             if ($parameters.Name -contains 'Path') {
                                 $pathParam = $parameters | Where-Object { $_.Name -eq 'Path' }
-                                $pathParam.ParameterType.Name | Should -BeLike 'String*'
+                                $pathParam.ParameterType.Name | Should -BeLike 'String*' -Because "If your cmdlet allows the user to specify a file or a data source, it should define a parameter of type System.String`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-windows-powershell-paths"
                             }
                         }
         
-                        It 'If Uri is a parameter it should have the System.Uri type. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-strongly-typed-net-framework-types' {
+                        It 'If Uri is a parameter it should have the System.Uri type.' {
                             if ($parameters.Name -contains 'Uri') {
                                 $pathParam = $parameters | Where-Object { $_.Name -eq 'Uri' }
-                                $pathParam.ParameterType.Name | Should -Be 'Uri'
+                                $pathParam.ParameterType.Name | Should -Be 'Uri' -Because "If Uri is a parameter it should have the System.Uri type.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#use-strongly-typed-net-framework-types"
                             }
                         }
         
@@ -328,10 +330,10 @@ function Test-Cmdlet {
                             }
                         }
         
-                        It 'Makes sure that the type described by input object is valid. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/advisory-development-guidelines?view=powershell-7.3#support-an-inputobject-parameter-ad01' {
+                        It 'Makes sure that the type described by input object is valid.' {
                             if ($parameters.Name -contains 'InputObject') {
                                 $inputObjectParam = $parameters | Where-Object { $_.Name -eq 'InputObject' }
-                                { $inputObjectParam.ParameterType } | Should -Not -Throw
+                                { $inputObjectParam.ParameterType } | Should -Not -Throw -Because "`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/advisory-development-guidelines?view=powershell-7.3#support-an-inputobject-parameter-ad01"
                             }
                         }
         
