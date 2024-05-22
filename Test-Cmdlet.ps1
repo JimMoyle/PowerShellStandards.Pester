@@ -213,8 +213,15 @@ function Test-Cmdlet {
 
                         #TODO Common parmater aliases shouldn't be used for other paramaeters. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/common-parameter-names?view=powershell-7.4#general-common-parameters
 
-                        #TODO Switch parameters shouldn't have  a position https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
-
+                        It 'Switch parameters should not have a position.' {
+                            $switchParams = foreach ($param in $parameters) { 
+                                if ($param.ParameterType.Name -eq 'SwitchParameter' -and $param.Attributes.Position -ne -2147483648) { 
+                                    Write-Output $param.Name 
+                                } 
+                            }
+                            $switchParams | Should -BeNullOrEmpty -Because "the Switch parameter(s) $switchParams should not have a position.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations"
+                        }
+                    
                         #TODO Switch parameters shouldn't be mandatory, unless they are the only mandatory parameter in a parameterset https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
         
                         #TODO Must not conflict with existing names https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.4#manage-name-conflicts
@@ -474,7 +481,7 @@ function Test-Cmdlet {
                         }
         
                         It -Tag WIP 'Supports arrays for Parameters where appropriate. https://learn.microsoft.com/powershell/scripting/developer/cmdlet/strongly-encouraged-development-guidelines?view=powershell-7.3#support-arrays-for-parameters' {
-        
+                            #TODO no idea how to do this.
                         }
                     }
         
