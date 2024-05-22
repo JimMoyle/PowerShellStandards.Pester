@@ -211,7 +211,12 @@ function Test-Cmdlet {
             
                     Context 'Input' {
 
-                        #TODO Common parmater aliases shouldn't be used for other paramaeters. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/common-parameter-names?view=powershell-7.4#general-common-parameters
+                        #TODO Common paramater aliases shouldn't be used for other parameters. https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/common-parameter-names?view=powershell-7.4#general-common-parameters
+                        
+                        #TODO Switch parameters shouldn't be mandatory, unless they are the only mandatory parameter in a parameterset https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
+        
+                        #TODO Must not conflict with existing names https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.4#manage-name-conflicts
+
 
                         It 'Switch parameters should not have a position.' {
                             $switchParams = foreach ($param in $parameters) { 
@@ -221,10 +226,6 @@ function Test-Cmdlet {
                             }
                             $switchParams | Should -BeNullOrEmpty -Because "the Switch parameter(s) $switchParams should not have a position.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations"
                         }
-                    
-                        #TODO Switch parameters shouldn't be mandatory, unless they are the only mandatory parameter in a parameterset https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_functions_advanced_parameters?view=powershell-7.4#switch-parameter-design-considerations
-        
-                        #TODO Must not conflict with existing names https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.4#manage-name-conflicts
         
                         It -Tag AutoRest 'Parameter must accept input (DontShow).' {
                             $noShowParams = foreach ($param in $parameters) { 
