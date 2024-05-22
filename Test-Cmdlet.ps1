@@ -383,7 +383,7 @@ function Test-Cmdlet {
                                         $param.Attributes.position | Select-Object -First 1
                                     } 
                                 }
-                        ($positionalParams | Sort-Object -Unique).Count | Should -Be $positionalParams.Count -Because " https://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
+                        ($positionalParams | Sort-Object -Unique).Count | Should -Be $positionalParams.Count -Because "No parameter set should contain more than one positional parameter with the same position.`n`nDocumentation link:`nhttps://learn.microsoft.com/powershell/scripting/developer/cmdlet/parameter-attribute-declaration?view=powershell-7.3#remarks"
                             }
                         }
         
